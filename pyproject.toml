@@ -1,0 +1,12 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "annotation-exporter"
+version = "0.0.1"
+dependencies = ["opencv-python", "numpy", "boto3", "environs"]
+description = ""
+
+[project.scripts]
+anno-exporter = "annotation_exporter.main:main"

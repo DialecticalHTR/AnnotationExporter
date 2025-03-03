@@ -5,22 +5,27 @@ import argparse
 from pathlib import Path
 from typing import List
 
-from s3 import *
-from annotations import *
-from exporter import *
-from builder import *
+from .s3 import *
+from .annotations import *
+from .exporter import *
+from .builder import *
 
 
 def main():
     # 0. Create parser
     parser = argparse.ArgumentParser(
-        prog='to_trocr',
+        prog='anno-exporter',
         description='Converts Label Studio annotations to a dataset'
     )
     parser.add_argument("--from", nargs=2, metavar=("TYPE", "VALUE"), action='append')
     parser.add_argument('--to', nargs=2, metavar=("TYPE", "VALUE"), action='append')
     parser.add_argument('--data', choices=['trocr'], default='trocr')
     args = parser.parse_args()
+
+    if not getattr(args, 'from'):
+        parser.error('No data sources provided.')
+    if not args.to:
+        parser.error('No data outputs provided')
 
     # 1. Connect to S3
     s3_connection = S3ConnectionConfig(

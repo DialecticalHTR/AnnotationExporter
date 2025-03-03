@@ -1,7 +1,7 @@
 import io
 from pathlib import Path
 
-from s3 import S3Url, S3Context
+from annotation_exporter.s3 import S3Url, S3Context
 
 from .base import Exporter
 

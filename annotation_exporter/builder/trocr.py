@@ -5,8 +5,8 @@ from typing import List
 import cv2
 import numpy as np
 
-from annotations import Task
-from exporter import Exporter
+from annotation_exporter.annotations import Task
+from annotation_exporter.exporter import Exporter
 from .base import Builder
 
 

@@ -1,0 +1,2 @@
+[build.targets.wheel]
+only-include = ["annotation_exporter"]
