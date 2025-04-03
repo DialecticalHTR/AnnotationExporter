@@ -3,6 +3,7 @@ from typing import List
 
 from annotation_exporter.s3 import S3Context
 from annotation_exporter.exporter import Exporter
+from annotation_exporter.annotations import Task
 
 
 class Builder(ABC):
@@ -10,7 +11,7 @@ class Builder(ABC):
         self.s3_context = s3_context
 
     @abstractmethod
-    def build_dataset(exporters: List[Exporter]):
+    def build_dataset(tasks: List[Task], exporters: List[Exporter]):
         pass
 
 
