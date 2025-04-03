@@ -37,6 +37,12 @@ class Region:
                 self.points.append(self.points[0])
             case _:
                 pass
+    
+    @property
+    def bounding_box(self):
+        min_x, max_x = min(p[0] for p in self.points), max(p[0] for p in self.points)
+        min_y, max_y = min(p[1] for p in self.points), max(p[1] for p in self.points)
+        return (min_x, min_y, max_x, max_y)
 
 
 @dataclasses.dataclass

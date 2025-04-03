@@ -19,7 +19,7 @@ def main():
     )
     parser.add_argument("--from", nargs=2, metavar=("TYPE", "VALUE"), action='append')
     parser.add_argument('--to', nargs=2, metavar=("TYPE", "VALUE"), action='append')
-    parser.add_argument('--data', choices=['trocr'], default='trocr')
+    parser.add_argument('--data', choices=['trocr', 'yolo'], default='trocr')
     args = parser.parse_args()
 
     if not getattr(args, 'from'):
@@ -67,6 +67,8 @@ def main():
     match args.data:
         case 'trocr':
             builder = TrOCRBuilder(s3_context)
+        case 'yolo':
+            builder = YoloBuilder(s3_context)
         case _:
             raise ValueError(f'Unknown dataset type {args.data}')
     
