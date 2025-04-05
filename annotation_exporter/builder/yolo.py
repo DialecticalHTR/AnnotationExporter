@@ -35,6 +35,7 @@ class YoloBuilder(Builder):
             for annotation in task_data.annotations:
                 labels = []
                 for region in annotation.regions.values():
+                    # Everything is in range 0-100 (Label Studio format)
                     x1, y1, x2, y2 = region.bounding_box
                     width, height = x2-x1, y2-y1
                     x_center, y_center = x1 + width / 2, y1 + height / 2
@@ -42,7 +43,7 @@ class YoloBuilder(Builder):
                     # TODO: We need to get an label map from Label Studio somehow
                     # What's good is that we only use one label and nobody else will ever use this 
                     labels.append(
-                        f"0 {x_center / image_width} {y_center / image_height} {width / image_width} {height / image_height}"
+                        f"0 {x_center / 100} {y_center / 100} {width / 100} {height / 100}"
                     )
 
                 labels_data = "\n".join(labels)
