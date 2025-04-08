@@ -1,5 +1,3 @@
-import io
-import csv
 from typing import List
 
 import cv2
@@ -8,48 +6,74 @@ import numpy as np
 from annotation_exporter.annotations import Task
 from annotation_exporter.exporter import Exporter
 from .base import Builder
+from ..utils import rotate_image
+
+
+def _rotate_point(x, y, angle, origin=(0, 0)) -> tuple[float, float]:
+    angle = np.radians(angle)
+
+    x, y = x - origin[0], y - origin[1]
+    x = x * np.cos(angle) - y * np.sin(angle)
+    y = x * np.sin(angle) + y * np.cos(angle)
+    x, y = x + origin[0], y + origin[1]
+    return x, y
+
+
+def _rotate_yolo_box(x1, y1, x2, y2, angle) -> tuple[float, float, float, float]:
+    return *_rotate_point(x1, y1, angle, (0.5, 0.5)), *_rotate_point(x2, y2, angle, (0.5, 0.5))
+
+
+def _ls_to_yolo(x1, y1, x2, y2):
+    return [i / 100 for i in (x1, y1, x2, y2)]
 
 
 class YoloBuilder(Builder):
     def build_dataset(self, tasks: List[Task], exporters: List[Exporter]):
+        saved_validation = False
+
         for i, task_data in enumerate(tasks):
             if not task_data.annotations:
                 continue
 
+            # Download image
             image_bytes = self.s3_context.download_bytes(task_data.image_url)
             image_bytes = np.frombuffer(image_bytes, dtype=np.uint8)
-            image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
-            _, image_bytes = cv2.imencode(".jpg", image, [cv2.IMWRITE_JPEG_QUALITY, 100])
 
-            for e in exporters:
-                e.export_bytes(image_bytes, f"train/images/{i}.jpg")
+            # Prepare and save image
+            image = cv2.imdecode(image_bytes, cv2.IMREAD_COLOR)
+
+            for j, annotation in enumerate(task_data.annotations):
+                task_name = f"{i}{j}"
+                to_save = rotate_image(image, annotation.image_rotation)
+                _, image_bytes = cv2.imencode(".jpg", to_save, [cv2.IMWRITE_JPEG_QUALITY, 100])
+
+                for e in exporters:
+                    e.export_bytes(image_bytes, f"train/images/{task_name}.jpg")
 
                 # TODO: Make an actual train/eval split
                 # Janky hack because YOLO requires validation images
-                if i == 0:
-                    e.export_bytes(image_bytes, f"val/images/{i}.jpg")
+                if not saved_validation:
+                    e.export_bytes(image_bytes, f"val/images/{task_name}.jpg")
+                    saved_validation = True
 
-
-            image_height, image_width = image.shape[:2]
-
-            for annotation in task_data.annotations:
                 labels = []
                 for region in annotation.regions.values():
-                    # Everything is in range 0-100 (Label Studio format)
-                    x1, y1, x2, y2 = region.bounding_box
-                    width, height = x2-x1, y2-y1
+                    bbox = _ls_to_yolo(*region.bounding_box)
+                    x1, y1, x2, y2 = _rotate_yolo_box(*bbox, annotation.image_rotation)
+
+                    width, height = x2 - x1, y2 - y1
                     x_center, y_center = x1 + width / 2, y1 + height / 2
 
                     # TODO: We need to get an label map from Label Studio somehow
                     # What's good is that we only use one label and nobody else will ever use this 
                     labels.append(
-                        f"0 {x_center / 100} {y_center / 100} {width / 100} {height / 100}"
+                        f"0 {x_center} {y_center} {width} {height}"
                     )
 
                 labels_data = "\n".join(labels)
-                e.export_bytes(labels_data.encode("utf-8"), f"train/labels/{i}.txt")
+                e.export_bytes(labels_data.encode("utf-8"), f"train/labels/{task_name}.txt")
                 if i == 0:
-                    e.export_bytes(labels_data.encode("utf-8"), f"val/labels/{i}.txt")
+                    e.export_bytes(labels_data.encode("utf-8"), f"val/labels/{task_name}.txt")
             
             for e in exporters:
                 yaml = self._get_yaml()
@@ -60,6 +84,7 @@ class YoloBuilder(Builder):
         text = "train: ../train/images\nval: ../val/images\n\nnc: 1\nnames: ['Handwriting']"
 
         return text
+
 
 
 __all__ = [
