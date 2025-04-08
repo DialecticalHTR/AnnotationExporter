@@ -8,6 +8,7 @@ import numpy as np
 from annotation_exporter.annotations import Task
 from annotation_exporter.exporter import Exporter
 from .base import Builder
+from ..utils import rotate_image
 
 
 class TrOCRBuilder(Builder):
@@ -47,12 +48,7 @@ class TrOCRBuilder(Builder):
                     image_part = cv2.add(text_part, white_part)
 
                     # rotate image if it was rotated in Label Studio
-                    rotation_matrix = cv2.getRotationMatrix2D(
-                        np.array(image_part.shape[1::-1]) / 2,
-                        region.image_rotation,
-                        1.0
-                    )
-                    image_part = cv2.warpAffine(image_part, rotation_matrix, image_part.shape[1::-1], flags=cv2.INTER_CUBIC)
+                    image_part = rotate_image(image_part, region.image_rotation)
 
                     # save image
                     filename = f'{region_id}.jpg'
