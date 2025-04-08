@@ -29,7 +29,8 @@ def _ls_to_yolo(x1, y1, x2, y2):
 
 class YoloBuilder(Builder):
     def build_dataset(self, tasks: List[Task], exporters: List[Exporter]):
-        saved_validation = False
+        validation_image_saved = False
+        validation_annotation_saved = False
 
         for i, task_data in enumerate(tasks):
             if not task_data.annotations:
@@ -52,9 +53,9 @@ class YoloBuilder(Builder):
 
                 # TODO: Make an actual train/eval split
                 # Janky hack because YOLO requires validation images
-                if not saved_validation:
+                if not validation_image_saved:
                     e.export_bytes(image_bytes, f"val/images/{task_name}.jpg")
-                    saved_validation = True
+                    validation_image_saved = True
 
                 labels = []
                 for region in annotation.regions.values():
@@ -72,8 +73,9 @@ class YoloBuilder(Builder):
 
                 labels_data = "\n".join(labels)
                 e.export_bytes(labels_data.encode("utf-8"), f"train/labels/{task_name}.txt")
-                if i == 0:
+                if not validation_annotation_saved:
                     e.export_bytes(labels_data.encode("utf-8"), f"val/labels/{task_name}.txt")
+                    validation_annotation_saved = True
             
             for e in exporters:
                 yaml = self._get_yaml()
