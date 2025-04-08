@@ -1,4 +1,5 @@
 import dataclasses
+from statistics import mean
 
 
 @dataclasses.dataclass
@@ -49,6 +50,7 @@ class Region:
 class Annotation:
     id: str
     regions: dict[str, Region] = dataclasses.field(default_factory=dict)
+    image_rotation: int = 0
 
     @classmethod
     def from_json(cls, data) -> "Annotation":
@@ -58,6 +60,8 @@ class Annotation:
             if (region_id := region_part['id']) not in annotation.regions:
                 annotation.regions[region_id] = Region(id=region_id)
             annotation.regions[region_id].process_part(region_part)
+
+        annotation.image_rotation = mean(region.image_rotation for region in annotation.regions.values()) 
         return annotation
 
 
