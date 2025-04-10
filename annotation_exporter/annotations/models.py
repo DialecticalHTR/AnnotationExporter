@@ -1,27 +1,54 @@
+import abc
+import warnings
 import dataclasses
 from statistics import mean
 
 
+# @dataclasses.dataclass
+# class AnnotationPart:
+#     id: str
+#     annotation_type: str = dataclasses.field(init=False)
+#     from_name: str = dataclasses.field(init=False)
+#     to_name: str = dataclasses.field(init=False)
+
+
 @dataclasses.dataclass
-class Region:
+class AnnotationData(abc.ABC):
     id: str
+
+    @staticmethod
+    @abc.abstractmethod
+    def is_instance(self, types: set[str]) -> bool:
+        pass
+
+    @abc.abstractmethod
+    def process_part(self, part: dict) -> None:
+        pass 
+
+
+@dataclasses.dataclass
+class Region(AnnotationData):
     text: str = dataclasses.field(init=False)
-    type: str = dataclasses.field(init=False)
-    image_rotation: int = dataclasses.field(init=False)
+    image_rotation: int | None = dataclasses.field(init=False)
     labels: list[str] = dataclasses.field(default_factory=list)
     points: list[list[int, int]] = dataclasses.field(default_factory=list)
+
+    @staticmethod
+    def is_instance(types: set[str]) -> bool:
+        return "textarea" in types and ("rectangle" in types or "polygon" in types)
     
     def process_part(self, part):
         annotation_type = part['type']
         value = part['value']
-        self.image_rotation = part['image_rotation']
 
         match annotation_type:
             case 'labels':
                 self.labels = value['labels']
+                self.image_rotation = part['image_rotation']
             case 'textarea':
                 # TODO: make text an list with all text annotations, will do for now
                 self.text = value['text'][0]
+                self.image_rotation = part['image_rotation']
             case 'rectangle':
                 self.type = annotation_type
                 x, y, w, h = value['x'], value['y'], value['width'], value['height']
@@ -31,11 +58,15 @@ class Region:
                 self.points.append([x+w, y+h])
                 self.points.append([x, y+h])
                 self.points.append(self.points[0])
+                
+                self.image_rotation = part['image_rotation']
             case 'polygon':
                 self.type = annotation_type
                 for x, y in value['points']:
                     self.points.append([round(x), round(y)])
                 self.points.append(self.points[0])
+                
+                self.image_rotation = part['image_rotation']
             case _:
                 pass
     
@@ -47,22 +78,62 @@ class Region:
 
 
 @dataclasses.dataclass
+class Choices(AnnotationData):
+    choices: list[str] = dataclasses.field(default_factory=list)
+
+    @staticmethod
+    def is_instance(types: set[str]) -> bool:
+        return "choices" in types
+
+    def process_part(self, part):
+        annotation_type = part['type']
+
+        match annotation_type:
+            case 'choices':
+                self.choices.extend(part["value"]["choices"])
+            case _:
+                pass      
+
+
+@dataclasses.dataclass
 class Annotation:
     id: str
-    regions: dict[str, Region] = dataclasses.field(default_factory=dict)
+    data: dict[str, AnnotationData] = dataclasses.field(default_factory=dict)
+    # regions: dict[str, Region] = dataclasses.field(default_factory=dict)
     image_rotation: int = 0
 
     @classmethod
     def from_json(cls, data) -> "Annotation":
         annotation = cls(id=data['id'])
 
-        for region_part in data['result']:
-            if (region_id := region_part['id']) not in annotation.regions:
-                annotation.regions[region_id] = Region(id=region_id)
-            annotation.regions[region_id].process_part(region_part)
+        # Split parts by id
+        data_by_id: dict[str, list[dict]] = {}
+        for part in data['result']:
+            _id = part['id']
+            if _id not in data_by_id:
+                data_by_id[_id] = []
+            data_by_id[_id].append(part)
+        
+        # Create annotation data
+        for _id, parts in data_by_id.items():
+            types = set(part["type"] for part in parts)
+
+            for cls in AnnotationData.__subclasses__():
+                if cls.is_instance(types):
+                    annotation_data = cls(id=_id)
+                    for part in parts:
+                        annotation_data.process_part(part)
+                    annotation.data[_id] = annotation_data
+                    break
+            else:
+                warnings.warn(f"Failed to find type of annotation data {_id} of annotation {annotation.id}")
 
         annotation.image_rotation = mean(region.image_rotation for region in annotation.regions.values()) 
         return annotation
+    
+    @property
+    def regions(self):
+        return {i: data for i, data in self.data.items() if isinstance(data, Region)}
 
 
 @dataclasses.dataclass
