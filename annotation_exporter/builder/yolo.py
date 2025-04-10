@@ -1,3 +1,4 @@
+import warnings
 from typing import List
 
 import cv2
@@ -19,12 +20,18 @@ def _rotate_point(x, y, angle, origin=(0, 0)) -> tuple[float, float]:
     return x, y
 
 
-def _rotate_yolo_box(x1, y1, x2, y2, angle) -> tuple[float, float, float, float]:
-    return *_rotate_point(x1, y1, angle, (0.5, 0.5)), *_rotate_point(x2, y2, angle, (0.5, 0.5))
+def _rotate_ls_box(x1, y1, x2, y2, angle) -> tuple[float, float, float, float]:
+    p1 = _rotate_point(x1, y1, angle, (50, 50))
+    p2 = _rotate_point(x2, y2, angle, (50, 50))
+
+    # get it back to upper-left, lower-right point format
+    return min(p1[0], p2[0]), min(p1[1], p2[1]), max(p1[0], p2[0]), max(p1[1], p2[1])
 
 
 def _ls_to_yolo(x1, y1, x2, y2):
-    return [i / 100 for i in (x1, y1, x2, y2)]
+    width, height = x2-x1, y2-y1
+    x_center, y_center = x1 + width / 2, y1 + height / 2
+    return [i / 100 for i in (x_center, y_center, width, height)]
 
 
 class YoloBuilder(Builder):
@@ -59,17 +66,18 @@ class YoloBuilder(Builder):
 
                 labels = []
                 for region in annotation.regions.values():
-                    bbox = _ls_to_yolo(*region.bounding_box)
-                    x1, y1, x2, y2 = _rotate_yolo_box(*bbox, annotation.image_rotation)
+                    bbox = _rotate_ls_box(*region.bounding_box, annotation.image_rotation)
+                    bbox = _ls_to_yolo(*bbox)
 
-                    width, height = x2 - x1, y2 - y1
-                    x_center, y_center = x1 + width / 2, y1 + height / 2
+                    if any(i < 0 or i > 1 for i in bbox):
+                        warnings.warn(
+                            f"Yolo task {task_name} has values outside [0, 1]",
+                            RuntimeWarning
+                        )
 
                     # TODO: We need to get an label map from Label Studio somehow
-                    # What's good is that we only use one label and nobody else will ever use this 
-                    labels.append(
-                        f"0 {x_center} {y_center} {width} {height}"
-                    )
+                    # What's good is that we only use one label and nobody else will ever use this
+                    labels.append(f"0 {' '.join(str(i) for i in bbox)}")
 
                 labels_data = "\n".join(labels)
                 e.export_bytes(labels_data.encode("utf-8"), f"train/labels/{task_name}.txt")
