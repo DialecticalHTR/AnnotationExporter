@@ -15,6 +15,11 @@ class Builder(ABC):
         pass
 
 
+    @property
+    @abstractmethod
+    def name(): pass
+
+
 __all__ = [
     'Builder'
 ]

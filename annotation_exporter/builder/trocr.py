@@ -12,6 +12,8 @@ from ..utils import rotate_image
 
 
 class TrOCRBuilder(Builder):
+    name = "trocr" 
+
     def build_dataset(self, tasks: List[Task], exporters: List[Exporter]):
         data = []
 

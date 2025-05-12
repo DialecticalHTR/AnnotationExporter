@@ -35,6 +35,8 @@ def _ls_to_yolo(x1, y1, x2, y2):
 
 
 class YoloBuilder(Builder):
+    name = "yolo"
+    
     def build_dataset(self, tasks: List[Task], exporters: List[Exporter]):
         validation_image_saved = False
         validation_annotation_saved = False

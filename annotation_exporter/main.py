@@ -19,7 +19,7 @@ def main():
     )
     parser.add_argument("--from", nargs=2, metavar=("TYPE", "VALUE"), action='append')
     parser.add_argument('--to', nargs=2, metavar=("TYPE", "VALUE"), action='append')
-    parser.add_argument('--data', choices=['trocr', 'yolo'], default='trocr')
+    parser.add_argument('--data', choices=builders, default='trocr')
     args = parser.parse_args()
 
     if not getattr(args, 'from'):
