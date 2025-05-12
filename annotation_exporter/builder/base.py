@@ -11,9 +11,8 @@ class Builder(ABC):
         self.s3_context = s3_context
 
     @abstractmethod
-    def build_dataset(tasks: List[Task], exporters: List[Exporter]):
+    def build_dataset(self, tasks: List[Task], exporters: List[Exporter]):
         pass
-
 
     @property
     @abstractmethod

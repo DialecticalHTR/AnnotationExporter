@@ -29,6 +29,8 @@ class AnnotationData(abc.ABC):
 @dataclasses.dataclass
 class Region(AnnotationData):
     text: str = dataclasses.field(init=False)
+    original_width: int = dataclasses.field(init=False)
+    original_height: int = dataclasses.field(init=False)
     image_rotation: int | None = dataclasses.field(init=False)
     labels: list[str] = dataclasses.field(default_factory=list)
     points: list[list[int, int]] = dataclasses.field(default_factory=list)
@@ -40,6 +42,9 @@ class Region(AnnotationData):
     def process_part(self, part):
         annotation_type = part['type']
         value = part['value']
+        
+        self.original_width = int(part['original_width'])
+        self.original_height = int(part['original_height'])
 
         match annotation_type:
             case 'labels':
@@ -134,6 +139,15 @@ class Annotation:
     @property
     def regions(self):
         return {i: data for i, data in self.data.items() if isinstance(data, Region)}
+    
+    @property
+    def data_categories(self):
+        categories = []
+        for data in self.data.values():
+            if not isinstance(data, Choices):
+                continue
+            categories.extend(data.choices)
+        return tuple(categories)
 
 
 @dataclasses.dataclass

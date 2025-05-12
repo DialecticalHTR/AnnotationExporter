@@ -19,7 +19,7 @@ def main():
     )
     parser.add_argument("--from", nargs=2, metavar=("TYPE", "VALUE"), action='append')
     parser.add_argument('--to', nargs=2, metavar=("TYPE", "VALUE"), action='append')
-    parser.add_argument('--data', choices=builders, default='trocr')
+    parser.add_argument('--data', choices=builder_names, default='trocr')
     args = parser.parse_args()
 
     if not getattr(args, 'from'):
@@ -64,15 +64,20 @@ def main():
         exporters.append(exporter)
 
     # 4. Pick an dataset builder and build
-    match args.data:
-        case 'trocr':
-            builder = TrOCRBuilder(s3_context)
-        case 'yolo':
-            builder = YoloBuilder(s3_context)
-        case _:
-            raise ValueError(f'Unknown dataset type {args.data}')
+    # match args.data:
+    #     case 'trocr':
+    #         builder = TrOCRBuilder(s3_context)
+    #     case 'yolo':
+    #         builder = YoloBuilder(s3_context)
+    #     case _:
     
+    builder_type = next((b for b in builders if b.name == args.data), None)
+    if builder_type is None:
+        raise ValueError(f'Unknown dataset type {args.data}')
+    
+    builder = builder_type(s3_context)
     builder.build_dataset(tasks, exporters)
+    
 
 
 if __name__ == '__main__':

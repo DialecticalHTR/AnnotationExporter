@@ -2,7 +2,11 @@ from .base import *
 
 from .trocr import *
 from .yolo import *
+from .craft import *
 
 builders = [
-    b.name for b in [TrOCRBuilder, YoloBuilder,]
+    TrOCRBuilder, YoloBuilder, CraftBuilder
+]
+builder_names = [
+    b.name for b in builders
 ]
